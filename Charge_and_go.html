@@ -1,0 +1,1244 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Charge&Go Prototype</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="./logging.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+
+        /* Custom scrollbar for webkit */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        /* Map background pattern */
+        .map-bg {
+            background-color: #e5e7eb;
+            background-image:
+                radial-gradient(#cbd5e1 1px, transparent 1px),
+                radial-gradient(#cbd5e1 1px, transparent 1px);
+            background-size: 20px 20px;
+            background-position: 0 0, 10px 10px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Map pins */
+        .map-pin {
+            position: absolute;
+            transform: translate(-50%, -100%);
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+        }
+
+        .map-pin:hover {
+            transform: translate(-50%, -110%) scale(1.1);
+            z-index: 10;
+        }
+
+        .pin-active {
+            z-index: 20;
+            filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.3));
+        }
+
+        /* Road lines for map effect */
+        .road {
+            position: absolute;
+            background-color: #f8fafc;
+            border: 1px solid #e2e8f0;
+            z-index: 0;
+        }
+
+        /* Slide up animation for bottom sheet */
+        .slide-up {
+            animation: slideUp 0.3s ease-out forwards;
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(100%);
+            }
+
+            to {
+                transform: translateY(0);
+            }
+        }
+
+        /* Fade in animation */
+        .fade-in {
+            animation: fadeIn 0.3s ease-out forwards;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        /* Pulse animation for sponsored pins */
+        .pulse-ring {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7);
+            }
+
+            70% {
+                box-shadow: 0 0 0 10px rgba(59, 130, 246, 0);
+            }
+
+            100% {
+                box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+            }
+        }
+
+        /* Hide element class */
+        .hidden {
+            display: none !important;
+        }
+
+        /* Rating stars fill */
+        .star-filled {
+            color: #f59e0b;
+        }
+
+        .star-empty {
+            color: #d1d5db;
+        }
+
+        .star-half {
+            color: #f59e0b;
+        }
+
+        /* Needs special styling in real app, using filled for simple mock */
+    </style>
+</head>
+
+<body class="h-screen w-full flex flex-col md:flex-row overflow-hidden text-slate-800">
+
+
+    <!-- Mobile App Container (Left/Main Area) -->
+    <main
+        class="w-full md:w-[375px] h-full flex flex-col relative bg-white shadow-2xl flex-shrink-0 border-r border-slate-200 mx-auto md:mx-0 z-10">
+
+        <!-- Header -->
+        <header class="bg-white px-4 py-3 flex items-center justify-between z-20 shadow-sm">
+            <div class="flex items-center gap-2">
+                <i class="fa-solid fa-bolt text-blue-600 text-xl"></i>
+                <h1 class="font-bold text-lg tracking-tight">Charge&Go</h1>
+            </div>
+            <div class="flex items-center gap-4">
+                <button class="text-slate-500 hover:text-slate-800"><i
+                        class="fa-solid fa-magnifying-glass"></i></button>
+                <button class="text-slate-500 hover:text-slate-800 relative">
+                    <i class="fa-regular fa-bell"></i>
+                    <span
+                        class="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] w-3.5 h-3.5 rounded-full flex items-center justify-center font-bold">2</span>
+                </button>
+                <div
+                    class="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold border border-blue-200">
+                    JD
+                </div>
+            </div>
+        </header>
+
+        <!-- Search & Filter Bar -->
+        <div class="px-4 py-3 bg-white z-20 flex flex-col gap-3 shadow-[0_4px_6px_-1px_rgba(0,0,0,0.05)]">
+            <div class="relative">
+                <i
+                    class="fa-solid fa-location-dot absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400"></i>
+                <input type="text" placeholder="Search area or city..." value="Nuvali, Santa Rosa, Laguna"
+                    class="w-full bg-slate-100 rounded-lg pl-9 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 border border-transparent">
+                <button
+                    class="absolute right-3 top-1/2 transform -translate-y-1/2 text-blue-600 text-sm font-medium">Clear</button>
+            </div>
+
+            <div class="flex overflow-x-auto gap-2 pb-1 scrollbar-hide" id="filter-container">
+                <!-- Filters rendered via JS -->
+            </div>
+        </div>
+
+
+        <!-- Map Area -->
+        <div class="flex-1 map-bg relative" id="map-area">
+            <!-- Decorative Roads (Background) -->
+            <div class="road w-full h-12 top-[30%]" style="transform: rotate(-5deg);"></div>
+            <div class="road w-full h-16 top-[60%]" style="transform: rotate(2deg);"></div>
+            <div class="road h-full w-14 left-[40%]"></div>
+            <div class="road h-full w-10 left-[75%]" style="transform: rotate(15deg);"></div>
+
+            <!-- Map Controls -->
+            <div class="absolute right-3 top-3 flex flex-col gap-2 z-10">
+                <button
+                    class="w-10 h-10 bg-white rounded-lg shadow flex items-center justify-center text-slate-700 hover:bg-slate-50">
+                    <i class="fa-solid fa-layer-group"></i>
+                </button>
+                <button
+                    class="w-10 h-10 bg-white rounded-lg shadow flex items-center justify-center text-slate-700 hover:bg-slate-50">
+                    <i class="fa-solid fa-compass"></i>
+                </button>
+            </div>
+            <div class="absolute right-3 bottom-24 flex flex-col gap-2 z-10">
+                <div class="bg-white rounded-lg shadow flex flex-col overflow-hidden">
+                    <button
+                        class="w-10 h-10 flex items-center justify-center text-slate-700 hover:bg-slate-50 border-b border-slate-100">
+                        <i class="fa-solid fa-plus"></i>
+                    </button>
+                    <button class="w-10 h-10 flex items-center justify-center text-slate-700 hover:bg-slate-50">
+                        <i class="fa-solid fa-minus"></i>
+                    </button>
+                </div>
+                <button
+                    class="w-10 h-10 bg-blue-600 rounded-lg shadow flex items-center justify-center text-white hover:bg-blue-700 mt-2">
+                    <i class="fa-solid fa-location-crosshairs"></i>
+                </button>
+            </div>
+
+            <!-- Map Pins (Generated via JS) -->
+            <div id="pins-container"></div>
+
+            <!-- Refresh area button (mock) -->
+            <button
+                class="absolute top-4 left-1/2 transform -translate-x-1/2 bg-white px-4 py-1.5 rounded-full shadow-md text-sm font-medium text-slate-700 hover:bg-slate-50 z-10 flex items-center gap-2 border border-slate-200">
+                <i class="fa-solid fa-rotate-right text-xs"></i> Search this area
+            </button>
+
+            <!-- Navigate Offer Overlay (Hidden initially) -->
+            <div id="navigate-offer-overlay"
+                class="absolute inset-0 bg-slate-900/60 z-50 hidden flex-col items-center justify-end p-4 backdrop-blur-sm fade-in">
+                <div class="bg-white rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl mb-4 slide-up">
+                    <div class="p-5">
+                        <div class="flex justify-between items-start mb-4">
+                            <div>
+                                <h3 class="font-bold text-slate-800 text-lg mb-1">Route Planned!</h3>
+                                <p class="text-sm text-slate-500">12 mins to <span
+                                        id="nav-destination-name">Station</span></p>
+                            </div>
+                            <span
+                                class="text-[10px] font-bold text-slate-400 uppercase tracking-wide bg-slate-100 px-1.5 py-0.5 rounded">Sponsored</span>
+                        </div>
+
+                        <div class="bg-blue-50 border border-blue-100 rounded-xl p-4 flex gap-4 items-center mb-5">
+                            <div
+                                class="w-12 h-12 bg-white rounded-full flex items-center justify-center text-xl text-blue-600 shrink-0 shadow-sm">
+                                <i class="fa-solid fa-store"></i>
+                            </div>
+                            <div class="flex-1">
+                                <h4 class="font-bold text-slate-800 text-sm mb-1" id="nav-offer-title">Grab a snack on
+                                    the way?</h4>
+                                <p class="text-xs text-slate-600 mb-2">Stop at QuickMart (0.1 mi off route) and get a
+                                    free drink.</p>
+                            </div>
+                        </div>
+
+                        <div class="flex gap-3">
+                            <button
+                                class="flex-1 bg-slate-100 text-slate-700 font-semibold py-3 rounded-xl hover:bg-slate-200"
+                                onclick="startNavigation(false); logInteraction('navigation_ad_skipped');">
+                                Skip
+                            </button>
+                            <button
+                                class="flex-[2] bg-blue-600 text-white font-semibold py-3 rounded-xl hover:bg-blue-700 shadow-md shadow-blue-200"
+                                onclick="startNavigation(true); logInteraction('naviagation_ad_accepted);">
+                                Add Stop & Navigate
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- Bottom Sheet: Station List (Collapsed state initially) -->
+        <div id="station-list-sheet"
+            class="absolute bottom-0 left-0 w-full bg-white rounded-t-2xl shadow-[0_-10px_15px_-3px_rgba(0,0,0,0.1)] z-30 transition-all duration-300 transform translate-y-[calc(100%-120px)] flex flex-col h-[70%]">
+
+            <!-- Drag Handle -->
+            <div class="w-full flex justify-center py-3 cursor-grab" id="list-drag-handle">
+                <div class="w-12 h-1.5 bg-slate-300 rounded-full"></div>
+            </div>
+
+            <!-- List Header (Visible when collapsed) -->
+            <div class="px-5 pb-4 flex justify-between items-end border-b border-slate-100">
+                <div>
+                    <h2 class="font-bold text-lg" id="results-count">8 stations nearby</h2>
+                    <p class="text-sm text-slate-500">Sorted by distance</p>
+                </div>
+                <button class="text-blue-600 text-sm font-medium flex items-center gap-1" onclick="toggleListSheet()">
+                    <span id="list-toggle-text">View List</span>
+                    <i class="fa-solid fa-chevron-up" id="list-toggle-icon"></i>
+                </button>
+            </div>
+
+            <!-- List Content (Scrollable) -->
+            <div class="flex-1 overflow-y-auto px-4 py-2 pb-20" id="station-list-container">
+                <!-- List items rendered via JS -->
+            </div>
+        </div>
+
+        <!-- Bottom Sheet: Station Detail (Hidden initially) -->
+        <div id="station-detail-sheet"
+            class="absolute bottom-0 left-0 w-full h-[85%] bg-slate-50 rounded-t-2xl shadow-[0_-10px_25px_-5px_rgba(0,0,0,0.2)] z-40 hidden flex flex-col slide-up">
+            <!-- Header with Back Button & Close -->
+            <div
+                class="bg-white px-4 py-3 flex justify-between items-center rounded-t-2xl sticky top-0 z-10 shadow-sm border-b border-slate-100">
+                <button
+                    class="w-8 h-8 flex items-center justify-center bg-slate-100 rounded-full text-slate-600 hover:bg-slate-200"
+                    onclick="closeDetail()">
+                    <i class="fa-solid fa-arrow-left"></i>
+                </button>
+                <div class="font-semibold text-slate-800">Station Details</div>
+                <button
+                    class="w-8 h-8 flex items-center justify-center bg-slate-100 rounded-full text-slate-600 hover:bg-slate-200"
+                    onclick="closeDetail()">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- Detail Content (Scrollable) -->
+            <div class="flex-1 overflow-y-auto pb-24" id="detail-content">
+                <!-- Content populated via JS -->
+            </div>
+
+            <!-- Fixed Bottom Action Bar -->
+            <div
+                class="absolute bottom-0 left-0 w-full bg-white border-t border-slate-200 p-4 pb-6 flex gap-3 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-20">
+                <button
+                    class="flex-1 bg-slate-100 text-slate-700 font-semibold py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-slate-200"
+                    onclick="alert('Mock action: Added to saved locations'); logInteraction('save_btn_clicked');">
+                    <i class="fa-regular fa-bookmark"></i> Save
+                </button>
+                <button
+                    class="flex-1 bg-slate-100 text-slate-700 font-semibold py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-slate-200"
+                    onclick="alert('Mock action: Opening Reservation'); logInteraction('reserve_btn_clicked');">
+                    <i class="fa-regular fa-calendar-check"></i> Reserve
+                </button>
+                <button
+                    class="flex-[2] bg-blue-600 text-white font-semibold py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-blue-700 shadow-md shadow-blue-200"
+                    onclick="triggerNavigationOffer(); logInteraction('navigate_btn_clicked');">
+                    <i class="fa-solid fa-location-arrow"></i> Navigate
+                </button>
+            </div>
+        </div>
+
+        <!-- Feedback Overlay (Hidden) -->
+        <div id="feedback-overlay"
+            class="absolute inset-0 bg-slate-900/40 z-50 hidden items-center justify-center p-4 backdrop-blur-sm fade-in">
+            <div class="bg-white rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl">
+                <div class="bg-blue-600 p-4 text-white flex justify-between items-center">
+                    <h3 class="font-bold">Provide Feedback</h3>
+                    <button onclick="closeFeedback()" class="text-blue-100 hover:text-white"><i
+                            class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="p-5">
+                    <p class="text-sm text-slate-600 mb-4">Did you find the sponsored offer relevant to your location?
+                    </p>
+
+                    <div class="flex gap-2 mb-5">
+                        <button
+                            class="flex-1 py-2 border border-slate-200 rounded-lg flex flex-col items-center gap-1 hover:bg-slate-50 hover:border-blue-300 focus:bg-blue-50 focus:border-blue-500"
+                            onclick="selectFeedback(this)">
+                            <i class="fa-regular fa-face-smile text-2xl text-green-500"></i>
+                            <span class="text-xs font-medium">Yes</span>
+                        </button>
+                        <button
+                            class="flex-1 py-2 border border-slate-200 rounded-lg flex flex-col items-center gap-1 hover:bg-slate-50 hover:border-blue-300 focus:bg-blue-50 focus:border-blue-500"
+                            onclick="selectFeedback(this)">
+                            <i class="fa-regular fa-face-meh text-2xl text-yellow-500"></i>
+                            <span class="text-xs font-medium">Somewhat</span>
+                        </button>
+                        <button
+                            class="flex-1 py-2 border border-slate-200 rounded-lg flex flex-col items-center gap-1 hover:bg-slate-50 hover:border-blue-300 focus:bg-blue-50 focus:border-blue-500"
+                            onclick="selectFeedback(this)">
+                            <i class="fa-regular fa-face-frown text-2xl text-red-500"></i>
+                            <span class="text-xs font-medium">No</span>
+                        </button>
+                    </div>
+
+                    <textarea
+                        class="w-full border border-slate-200 rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4"
+                        rows="3" placeholder="Tell us more (optional)..."></textarea>
+
+                    <button class="w-full bg-slate-800 text-white font-semibold py-3 rounded-xl hover:bg-slate-900"
+                        onclick="submitFeedback()">
+                        Submit Feedback
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+
+    <!-- Advertiser Preview Panel (Right Side, Desktop only) -->
+    <aside class="hidden md:flex flex-col flex-1 h-full bg-slate-50 overflow-y-auto p-6 lg:p-8">
+
+        <div class="max-w-4xl w-full mx-auto">
+            <div class="flex justify-between items-center mb-8">
+                <div>
+                    <h2 class="text-2xl font-bold text-slate-800">Advertiser Dashboard Preview</h2>
+                    <p class="text-slate-500">Campaign: Local EV Charging Promotions</p>
+                </div>
+                <div
+                    class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-semibold flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-blue-600"></span> Live Testing
+                </div>
+            </div>
+
+            <!-- Metrics Cards -->
+            <div class="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-8">
+                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+                    <div class="text-slate-500 text-sm font-medium mb-1 flex justify-between">
+                        Total Impressions <i class="fa-solid fa-eye text-slate-400"></i>
+                    </div>
+                    <div class="text-2xl font-bold text-slate-800" id="metric-impressions">1,248</div>
+                    <div class="text-green-500 text-xs mt-2 font-medium flex items-center gap-1">
+                        <i class="fa-solid fa-arrow-up"></i> 12% vs last week
+                    </div>
+                </div>
+
+                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+                    <div class="text-slate-500 text-sm font-medium mb-1 flex justify-between">
+                        Clicks on Pin <i class="fa-solid fa-hand-pointer text-slate-400"></i>
+                    </div>
+                    <div class="text-2xl font-bold text-slate-800" id="metric-pin-clicks">0</div>
+                    <div class="text-green-500 text-xs mt-2 font-medium flex items-center gap-1">
+                        <i class="fa-solid fa-arrow-up"></i> Click-through rate: <span id="metric-ctr">0</span>%
+                    </div>
+                </div>
+
+                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+                    <div class="text-slate-500 text-sm font-medium mb-1 flex justify-between">
+                        Offer Redemptions <i class="fa-solid fa-ticket text-slate-400"></i>
+                    </div>
+                    <div class="text-2xl font-bold text-slate-800" id="metric-redemptions">0</div>
+                    <div class="text-slate-400 text-xs mt-2 font-medium">
+                        Conversion tracking active
+                    </div>
+                </div>
+
+                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+                    <div class="text-slate-500 text-sm font-medium mb-1 flex justify-between">
+                        Avg. Dwell Time <i class="fa-regular fa-clock text-slate-400"></i>
+                    </div>
+                    <div class="text-2xl font-bold text-slate-800">45s</div>
+                    <div class="text-green-500 text-xs mt-2 font-medium flex items-center gap-1">
+                        <i class="fa-solid fa-arrow-up"></i> Good engagement
+                    </div>
+                </div>
+            </div>
+
+            <!-- Two Column Layout for Details -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+
+                <!-- Prototype Instructions -->
+                <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+                    <div class="bg-slate-800 text-white p-4 font-semibold flex items-center gap-2">
+                        <i class="fa-solid fa-flask"></i> Prototype Testing Guide
+                    </div>
+                    <div class="p-5 flex-1 text-slate-600 text-sm leading-relaxed space-y-4">
+                        <p>This interactive prototype simulates the user experience of finding EV charging stations with
+                            integrated, contextually relevant sponsored offers.</p>
+
+                        <h4 class="font-semibold text-slate-800">How to test:</h4>
+                        <ol class="list-decimal pl-5 space-y-2">
+                            <li>Interact with the map area on the left (click pins to simulate selection).</li>
+                            <li>Open the "View List" bottom sheet to see how stations are sorted.</li>
+                            <li>Look for the <span
+                                    class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200"><i
+                                        class="fa-solid fa-star"></i> SPONSORED</span> badge on specific stations (e.g.,
+                                Station 2, Station 5).</li>
+                            <li>Click a station to view its details. If it has a sponsored offer, it will be prominently
+                                displayed.</li>
+                            <li>Click "Claim Offer" to simulate conversion and trigger the feedback modal.</li>
+                            <li>Watch the metrics update on this dashboard in real-time as you interact.</li>
+                        </ol>
+
+                        <div class="bg-blue-50 border border-blue-100 rounded-lg p-3 mt-4">
+                            <p class="text-blue-800 text-xs font-medium"><i class="fa-solid fa-circle-info mr-1"></i>
+                                <strong>Goal:</strong> Validate if users find sponsored retail offers (coffee, food,
+                                shopping) useful while waiting for their EV to charge, without feeling the map
+                                experience is degraded.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Active Campaigns -->
+                <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div class="border-b border-slate-100 p-4 font-semibold flex items-center justify-between">
+                        <span>Ad Placement Testing Goals</span>
+                    </div>
+                    <div class="divide-y divide-slate-100">
+
+                        <!-- Campaign 1 -->
+                        <div class="p-4 hover:bg-slate-50 transition-colors">
+                            <div class="flex justify-between items-start mb-2">
+                                <div class="flex items-center gap-3">
+                                    <div
+                                        class="w-10 h-10 rounded-lg bg-orange-100 flex items-center justify-center text-orange-600 text-xl border border-orange-200">
+                                        <i class="fa-solid fa-map-pin"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="font-semibold text-slate-800">1. Sponsored Pin (Map)</h4>
+                                        <p class="text-xs text-slate-500">Highlighted icon on the map.</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="bg-blue-50 border border-blue-100 rounded-lg p-3 mt-2">
+                                <p class="text-blue-800 text-xs font-medium"><i class="fa-solid fa-bullseye mr-1"></i>
+                                    <strong>Observe:</strong> Does the unique pin style draw clicks without frustrating
+                                    users looking for regular chargers?
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Campaign 2 -->
+                        <div class="p-4 hover:bg-slate-50 transition-colors">
+                            <div class="flex justify-between items-start mb-2">
+                                <div class="flex items-center gap-3">
+                                    <div
+                                        class="w-10 h-10 rounded-lg bg-red-100 flex items-center justify-center text-red-600 text-xl border border-red-200">
+                                        <i class="fa-solid fa-id-card"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="font-semibold text-slate-800">2. Station Detail Card</h4>
+                                        <p class="text-xs text-slate-500">"While you charge" amenity offer.</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="bg-blue-50 border border-blue-100 rounded-lg p-3 mt-2">
+                                <p class="text-blue-800 text-xs font-medium"><i class="fa-solid fa-bullseye mr-1"></i>
+                                    <strong>Observe:</strong> Do users perceive this as a helpful nearby amenity or an
+                                    intrusive ad blocking charger info?
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Campaign 3 -->
+                        <div class="p-4 hover:bg-slate-50 transition-colors">
+                            <div class="flex justify-between items-start mb-2">
+                                <div class="flex items-center gap-3">
+                                    <div
+                                        class="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center text-purple-600 text-xl border border-purple-200">
+                                        <i class="fa-solid fa-route"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="font-semibold text-slate-800">3. Pre-Navigation Offer</h4>
+                                        <p class="text-xs text-slate-500">Interstitial before routing starts.</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="bg-blue-50 border border-blue-100 rounded-lg p-3 mt-2">
+                                <p class="text-blue-800 text-xs font-medium"><i class="fa-solid fa-bullseye mr-1"></i>
+                                    <strong>Observe:</strong> Will users accept a slight detour for a relevant reward
+                                    before they begin driving?
+                                </p>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="mt-8 text-center text-sm text-slate-400">
+                Mockup Prototype for User Testing Purposes Only • No real data collected
+            </div>
+        </div>
+    </aside>
+
+
+    <script>
+        // --- Mock Data ---
+
+        const filters = [
+            {id: 'fast', label: 'DC Fast', icon: 'fa-bolt', active: true},
+            {id: 'avail', label: 'Available Now', icon: 'fa-check-circle', active: false},
+            {id: 'free', label: 'Free', icon: 'fa-tag', active: false},
+            {id: 'chademo', label: 'CHAdeMO', icon: 'fa-plug', active: false},
+            {id: 'ccs', label: 'CCS2', icon: 'fa-plug-circle-bolt', active: false},
+            {id: 'tesla', label: 'Tesla', icon: 'fa-car', active: false}
+        ];
+
+        const stations = [
+            {
+                id: 1,
+                name: "Ayala Malls Solenad 1 EV Hub",
+                address: "Parking B, Solenad 1, Nuvali, Sta. Rosa",
+                distance: "250 m",
+                time: "2 mins",
+                available: 3,
+                total: 4,
+                speed: "22 kW (AC)",
+                price: "₱28/kWh",
+                rating: 4.8,
+                reviews: 142,
+                network: "Ayala Land EV",
+                networkLogo: "AL",
+                ports: ["Type 2"],
+                x: 48, y: 42, // Relative position % on map
+                isSponsoredLocation: false
+            },
+            {
+                id: 2,
+                name: "S&R Membership Shopping Nuvali",
+                address: "Santa Rosa - Tagaytay Rd, Nuvali, Sta. Rosa",
+                distance: "650 m",
+                time: "4 mins",
+                available: 4,
+                total: 6,
+                speed: "60 kW (DC Fast)",
+                price: "₱32/kWh",
+                rating: 4.6,
+                reviews: 98,
+                network: "Solarius EV Network",
+                networkLogo: "SE",
+                ports: ["CCS2", "Type 2"],
+                x: 62, y: 32,
+                isSponsoredLocation: true,
+                sponsor: {
+                    name: "S&R Food Service",
+                    offer: "Free Southern Style Fried Chicken wing or drink refill with ₱500 food purchase while charging.",
+                    code: "SNRCHARGENUVALI",
+                    icon: "fa-pizza-slice",
+                    color: "blue"
+                }
+            },
+            {
+                id: 3,
+                name: "Landers Superstore Nuvali",
+                address: "Nuvali Blvd, Don Jose, Sta. Rosa",
+                distance: "1.2 km",
+                time: "5 mins",
+                available: 2,
+                total: 4,
+                speed: "120 kW (DC Fast)",
+                price: "₱35/kWh",
+                rating: 4.7,
+                reviews: 115,
+                network: "EVAP Charge",
+                networkLogo: "EV",
+                ports: ["CCS2", "GB/T"],
+                x: 30, y: 55,
+                isSponsoredLocation: true,
+                sponsor: {
+                    name: "Landers Central Diner",
+                    offer: "15% discount on Landers Central NY Style Pizza slice & drink while your EV charges.",
+                    code: "LANDERSNUVALI",
+                    icon: "fa-burger",
+                    color: "amber"
+                }
+            },
+            {
+                id: 4,
+                name: "Seda Hotel Nuvali Parking",
+                address: "Lakeside EV Slot, Seda Hotel, Nuvali, Sta. Rosa",
+                distance: "1.8 km",
+                time: "6 mins",
+                available: 1,
+                total: 2,
+                speed: "22 kW (AC)",
+                price: "₱30/kWh",
+                rating: 4.9,
+                reviews: 64,
+                network: "Seda Hospitality",
+                networkLogo: "SH",
+                ports: ["Type 2"],
+                x: 72, y: 60,
+                isSponsoredLocation: false
+            },
+            {
+                id: 5,
+                name: "Galaxy Charge - Nuvali Station",
+                address: "Evoliving Center Parking, Nuvali Blvd, Sta. Rosa",
+                distance: "2.4 km",
+                time: "8 mins",
+                available: 4,
+                total: 4,
+                speed: "180 kW (Ultra Fast)",
+                price: "₱38/kWh",
+                rating: 4.8,
+                reviews: 210,
+                network: "Galaxy EV Network",
+                networkLogo: "GX",
+                ports: ["CCS2", "CHAdeMO"],
+                x: 42, y: 78,
+                isSponsoredLocation: false
+            },
+            {
+                id: 6,
+                name: "Microtel South Forbes Golf City",
+                address: "South Forbes Golf City, near Nuvali, Silang",
+                distance: "3.5 km",
+                time: "10 mins",
+                available: 2,
+                total: 2,
+                speed: "7 kW (L2 AC)",
+                price: "Free for Guests",
+                rating: 4.3,
+                reviews: 38,
+                network: "Microtel Hotels",
+                networkLogo: "MT",
+                ports: ["Type 2"],
+                x: 18, y: 25,
+                isSponsoredLocation: false
+            },
+            {
+                id: 7,
+                name: "Paseo de Santa Rosa Hub",
+                address: "Santa Rosa - Tagaytay Rd, Greenfield, Sta. Rosa",
+                distance: "4.1 km",
+                time: "12 mins",
+                available: 3,
+                total: 4,
+                speed: "50 kW (DC)",
+                price: "₱30/kWh",
+                rating: 4.2,
+                reviews: 82,
+                network: "Greenfield EV",
+                networkLogo: "P",
+                ports: ["CCS2", "Type 2"],
+                x: 80, y: 20,
+                isSponsoredLocation: false
+            },
+            {
+                id: 8,
+                name: "Vista Mall Santa Rosa EV Station",
+                address: "Santa Rosa - Tagaytay Rd, Don Jose, Sta. Rosa",
+                distance: "5.2 km",
+                time: "15 mins",
+                available: 2,
+                total: 4,
+                speed: "60 kW (DC)",
+                price: "₱32/kWh",
+                rating: 4.1,
+                reviews: 53,
+                network: "VinFast Charging",
+                networkLogo: "VM",
+                ports: ["CCS2", "Type 2"],
+                x: 85, y: 82,
+                isSponsoredLocation: false
+            }
+        ];
+
+        // --- State ---
+        let activeStationId = null;
+        let listExpanded = false;
+
+        // Advertiser Metrics (Mock)
+        let metrics = {
+            impressions: 1248,
+            pinClicks: 0,
+            redemptions: 0
+        };
+
+        // --- Initialization ---
+        document.addEventListener('DOMContentLoaded', () => {
+            renderFilters();
+            renderPins();
+            renderStationList();
+            setupDragHandle();
+
+            // Add user pin (center)
+            const mapArea = document.getElementById('map-area');
+            const userPin = document.createElement('div');
+            userPin.className = 'absolute w-4 h-4 bg-blue-500 rounded-full border-2 border-white shadow-[0_0_0_4px_rgba(59,130,246,0.2)] z-10';
+            userPin.style.left = '50%';
+            userPin.style.top = '50%';
+            userPin.style.transform = 'translate(-50%, -50%)';
+            mapArea.appendChild(userPin);
+
+            // Pulsing effect for user location
+            const pulse = document.createElement('div');
+            pulse.className = 'absolute w-12 h-12 bg-blue-500/20 rounded-full z-0 pulse-ring';
+            pulse.style.left = '50%';
+            pulse.style.top = '50%';
+            pulse.style.transform = 'translate(-50%, -50%)';
+            mapArea.appendChild(pulse);
+        });
+
+        // --- Rendering Functions ---
+
+        function renderFilters() {
+            const container = document.getElementById('filter-container');
+            container.innerHTML = '';
+
+            filters.forEach(filter => {
+                const btn = document.createElement('button');
+                btn.className = `flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${filter.active
+                    ? 'bg-slate-800 text-white border-slate-800'
+                    : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-50'
+                    }`;
+                btn.innerHTML = `
+                    <i class="fa-solid ${filter.icon}"></i>
+                    ${filter.label}
+                `;
+                btn.onclick = () => {
+                    filter.active = !filter.active;
+                    renderFilters();
+                };
+                container.appendChild(btn);
+            });
+        }
+
+        function renderPins() {
+            const container = document.getElementById('pins-container');
+            container.innerHTML = '';
+
+            stations.forEach(station => {
+                const pin = document.createElement('div');
+                const isActive = station.id === activeStationId;
+                const isAvailable = station.available > 0;
+
+                // Base pin styling
+                let pinClasses = 'map-pin flex flex-col items-center group';
+                if (isActive) pinClasses += ' pin-active scale-110';
+                pin.className = pinClasses;
+                pin.style.left = `${station.x}%`;
+                pin.style.top = `${station.y}%`;
+
+                // Color logic
+                let bgColor = isAvailable ? 'bg-green-500' : 'bg-slate-400';
+                let textColor = 'text-white';
+                let icon = isAvailable ? station.available : '<i class="fa-solid fa-clock text-[10px]"></i>';
+
+                // Sponsored styling overrides
+                let sponsorBadge = '';
+                if (station.isSponsoredLocation) {
+                    bgColor = 'bg-amber-400'; // Special color for sponsored
+                    textColor = 'text-amber-950';
+                    icon = `<i class="fa-solid ${station.sponsor.icon}"></i>`;
+                    sponsorBadge = `<div class="absolute -top-3 -right-3 bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded shadow">OFFER</div>`;
+                }
+
+                pin.innerHTML = `
+                    <div class="relative w-8 h-8 ${bgColor} rounded-full flex items-center justify-center shadow-md border-2 border-white transition-transform ${textColor} font-bold text-sm">
+                        ${icon}
+                        ${sponsorBadge}
+                        ${station.isSponsoredLocation ? '<div class="absolute inset-0 rounded-full ring-4 ring-amber-400/30 pulse-ring"></div>' : ''}
+                    </div>
+                    <div class="w-1 h-2 ${bgColor.replace('bg-', 'bg-')} mx-auto mt-[-1px]"></div>
+                    <div class="bg-white px-2 py-1 rounded shadow-sm text-[10px] font-semibold mt-1 whitespace-nowrap border border-slate-100 opacity-0 group-hover:opacity-100 transition-opacity absolute top-full pointer-events-none z-30">
+                        ${station.isSponsoredLocation ? station.sponsor.name : station.price}
+                    </div>
+                `;
+
+                pin.onclick = (e) => {
+                    e.stopPropagation();
+                    selectStation(station.id);
+                    logInteraction(`station_${station.id}_pin_clicked`);
+                };
+
+                container.appendChild(pin);
+            });
+        }
+
+        function renderStationList() {
+            const container = document.getElementById('station-list-container');
+            container.innerHTML = '';
+
+            document.getElementById('results-count').textContent = `${stations.length} stations nearby`;
+
+            stations.forEach(station => {
+                const isAvailable = station.available > 0;
+                const statusColor = isAvailable ? 'text-green-600' : 'text-orange-500';
+                const statusText = isAvailable ? `${station.available}/${station.total} Available` : 'All in use';
+
+                let sponsorBanner = '';
+                if (station.isSponsoredLocation && station.sponsor) {
+                    sponsorBanner = `
+                        <div class="mt-2 text-[10px] text-slate-500 flex items-center gap-1.5 bg-slate-50 px-2 py-1 rounded border border-slate-100 w-fit">
+                            <i class="fa-solid ${station.sponsor.icon} text-amber-500"></i>
+                            <span class="font-medium text-slate-600">Amenity: ${station.sponsor.name}</span>
+                        </div>
+                    `;
+                }
+
+                const item = document.createElement('div');
+                item.className = 'py-4 border-b border-slate-100 last:border-0 cursor-pointer hover:bg-slate-50 transition-colors px-1';
+                item.onclick = () => {
+                    selectStation(station.id);
+                    logInteraction(`station_${station.id}_list_btn_clicked`);
+                };
+
+                item.innerHTML = `
+                    <div class="flex justify-between items-start">
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2 mb-1">
+                                <h3 class="font-bold text-slate-800">${station.name}</h3>
+                                ${station.isSponsoredLocation ? '<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200"><i class="fa-solid fa-star"></i> AD</span>' : ''}
+                            </div>
+                            <div class="text-xs text-slate-500 mb-2">${station.address}</div>
+                            
+                            <div class="flex items-center gap-3 text-xs mb-2">
+                                <span class="font-semibold ${statusColor}"><i class="fa-solid fa-charging-station mr-1"></i>${statusText}</span>
+                                <span class="text-slate-400">•</span>
+                                <span class="font-medium text-slate-600">${station.speed}</span>
+                                <span class="text-slate-400">•</span>
+                                <span class="font-medium text-slate-600">${station.price}</span>
+                            </div>
+                            
+                            <div class="flex items-center gap-1 text-xs text-slate-500">
+                                <div class="flex text-amber-400 text-[10px]">
+                                    <i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-regular fa-star-half-stroke"></i>
+                                </div>
+                                <span>${station.rating} (${station.reviews})</span>
+                            </div>
+                            
+                            ${sponsorBanner}
+                        </div>
+                        
+                        <div class="flex flex-col items-end ml-3">
+                            <div class="text-sm font-bold text-slate-800">${station.distance}</div>
+                            <div class="text-xs text-slate-500 mb-3">${station.time} drive</div>
+                            <div class="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center text-xs font-bold text-slate-500 border border-slate-200">
+                                ${station.networkLogo}
+                            </div>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(item);
+            });
+        }
+
+        function selectStation(id) {
+            activeStationId = id;
+            renderPins(); // Update pin styles
+
+            const station = stations.find(s => s.id === id);
+            if (!station) return;
+
+            // Update Advertiser Metrics
+            metrics.pinClicks++;
+            updateDashboardMetrics();
+
+            // Populate Detail Sheet
+            const detailContent = document.getElementById('detail-content');
+
+            const isAvailable = station.available > 0;
+            const statusColor = isAvailable ? 'text-green-600' : 'text-orange-500';
+            const statusBg = isAvailable ? 'bg-green-50' : 'bg-orange-50';
+            const statusBorder = isAvailable ? 'border-green-200' : 'border-orange-200';
+            const statusText = isAvailable ? `${station.available} of ${station.total} ports available` : 'All ports currently in use';
+
+            // Render Ports
+            let portsHtml = '';
+            station.ports.forEach(port => {
+                portsHtml += `<span class="bg-slate-100 border border-slate-200 text-slate-700 text-xs px-2 py-1 rounded-md font-medium">${port}</span>`;
+            });
+
+            let sponsoredHtml = '';
+            if (station.isSponsoredLocation) {
+                const walkTime = station.id === 2 ? "1 min walk" : "3 min walk";
+                logInteraction('ad_displayed_' + station.sponsor.code); // when a sponsored offer pops up, log it
+
+                sponsoredHtml = `
+                    <div class="mx-5 mt-6 mb-2">
+                        <div class="flex items-center justify-between mb-3">
+                            <h3 class="font-bold text-slate-800 text-sm">While You Charge</h3>
+                        </div>
+                        <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex flex-col gap-3 relative overflow-hidden">
+                             <div class="absolute top-0 right-0 bg-slate-100 text-slate-400 text-[9px] font-bold px-2 py-1 rounded-bl-lg uppercase tracking-wider">Sponsored</div>
+                            <div class="flex items-start gap-3">
+                                <div class="w-10 h-10 bg-${station.sponsor.color}-50 rounded-full flex items-center justify-center text-lg text-${station.sponsor.color}-600 shrink-0 mt-1">
+                                    <i class="fa-solid ${station.sponsor.icon}"></i>
+                                </div>
+                                <div class="flex-1 pr-6">
+                                    <h4 class="font-bold text-slate-800 text-sm">${station.sponsor.name}</h4>
+                                    <span class="text-[10px] font-medium text-slate-500 flex items-center gap-1 mb-2">
+                                        <i class="fa-solid fa-person-walking"></i> ${walkTime} from charger
+                                    </span>
+                                    <p class="text-xs text-slate-600 leading-snug">${station.sponsor.offer}</p>
+                                </div>
+                            </div>
+                             <div class="mt-1 pt-3 border-t border-slate-100">
+                    <button class="w-full text-blue-600 hover:text-blue-700 text-xs font-bold py-1 flex items-center justify-center gap-1" onclick="claimOffer(); logInteraction('ad_claimed_${station.sponsor.code}');">
+                                    Claim Reward <i class="fa-solid fa-arrow-right"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            detailContent.innerHTML = `
+                <!-- Main Image/Map placeholder -->
+                <div class="w-full h-40 bg-slate-200 relative">
+                    <img src="https://placehold.co/400x200/cbd5e1/64748b?text=Street+View" class="w-full h-full object-cover" alt="Street view">
+                    <div class="absolute bottom-3 right-3 bg-black/60 backdrop-blur-sm text-white text-xs px-2 py-1 rounded">
+                        <i class="fa-regular fa-image mr-1"></i> 3 Photos
+                    </div>
+                </div>
+                
+                <div class="p-5 pb-0">
+                    <div class="flex justify-between items-start mb-2">
+                        <h2 class="text-2xl font-bold text-slate-800 leading-tight">${station.name}</h2>
+                        <div class="w-10 h-10 bg-white shadow-sm border border-slate-100 rounded-full flex items-center justify-center text-sm font-bold text-blue-600 shrink-0">
+                            ${station.networkLogo}
+                        </div>
+                    </div>
+                    
+                    <p class="text-slate-500 text-sm mb-4"><i class="fa-solid fa-location-dot mr-1"></i> ${station.address} • ${station.distance}</p>
+                    
+                    <div class="flex items-center gap-2 text-sm text-slate-600 mb-6">
+                        <span class="font-bold text-slate-800">${station.rating}</span>
+                        <div class="flex text-amber-400 text-xs">
+                            <i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-regular fa-star-half-stroke"></i>
+                        </div>
+                        <span class="underline underline-offset-2">(${station.reviews} reviews)</span>
+                    </div>
+
+                    <!-- Status Banner -->
+                    <div class="${statusBg} border ${statusBorder} rounded-xl p-3 flex items-center justify-between mb-6">
+                        <div class="flex items-center gap-2">
+                            <i class="fa-solid fa-charging-station ${statusColor} text-lg"></i>
+                            <span class="font-semibold ${statusColor}">${statusText}</span>
+                        </div>
+                        <span class="text-xs font-medium text-slate-500">Updated just now</span>
+                    </div>
+                </div>
+
+                ${sponsoredHtml}
+
+                <div class="p-5">
+                    <h3 class="font-bold text-slate-800 mb-3">Charging Information</h3>
+                    
+                    <div class="bg-white rounded-xl border border-slate-200 p-4 mb-4">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <div class="text-xs text-slate-500 mb-1">Max Speed</div>
+                                <div class="font-semibold text-slate-800 flex items-center gap-1">
+                                    <i class="fa-solid fa-bolt text-amber-500 text-sm"></i> ${station.speed}
+                                </div>
+                            </div>
+                            <div>
+                                <div class="text-xs text-slate-500 mb-1">Pricing</div>
+                                <div class="font-semibold text-slate-800">${station.price}</div>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-4 pt-4 border-t border-slate-100">
+                            <div class="text-xs text-slate-500 mb-2">Connectors</div>
+                            <div class="flex flex-wrap gap-2">
+                                ${portsHtml}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white rounded-xl border border-slate-200 p-4">
+                        <h3 class="font-bold text-slate-800 text-sm mb-3">Amenities Nearby</h3>
+                        <div class="flex flex-wrap gap-3 text-sm text-slate-600">
+                            <span class="flex items-center gap-1"><i class="fa-solid fa-restroom text-slate-400"></i> Restrooms</span>
+                            <span class="flex items-center gap-1"><i class="fa-solid fa-wifi text-slate-400"></i> Wi-Fi</span>
+                            <span class="flex items-center gap-1"><i class="fa-solid fa-store text-slate-400"></i> Shopping</span>
+                            <span class="flex items-center gap-1"><i class="fa-solid fa-utensils text-slate-400"></i> Food</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Show Detail Sheet
+            const detailSheet = document.getElementById('station-detail-sheet');
+            detailSheet.classList.remove('hidden');
+
+            // Push list down
+            const listSheet = document.getElementById('station-list-sheet');
+            listSheet.style.transform = 'translateY(100%)';
+        }
+
+        function closeDetail() {
+            const detailSheet = document.getElementById('station-detail-sheet');
+            detailSheet.classList.add('hidden');
+
+            const listSheet = document.getElementById('station-list-sheet');
+            // Reset to collapsed state
+            listExpanded = false;
+            listSheet.style.transform = 'translateY(calc(100% - 120px))';
+            document.getElementById('list-toggle-text').textContent = 'View List';
+            document.getElementById('list-toggle-icon').className = 'fa-solid fa-chevron-up';
+
+            activeStationId = null;
+            renderPins();
+        }
+
+        function toggleListSheet() {
+            const sheet = document.getElementById('station-list-sheet');
+            const toggleText = document.getElementById('list-toggle-text');
+            const toggleIcon = document.getElementById('list-toggle-icon');
+
+            listExpanded = !listExpanded;
+
+            if (listExpanded) {
+                sheet.style.transform = 'translateY(0)';
+                toggleText.textContent = 'Hide List';
+                toggleIcon.className = 'fa-solid fa-chevron-down';
+            } else {
+                sheet.style.transform = 'translateY(calc(100% - 120px))';
+                toggleText.textContent = 'View List';
+                toggleIcon.className = 'fa-solid fa-chevron-up';
+            }
+        }
+
+        // Basic drag logic for list sheet
+        function setupDragHandle() {
+            const handle = document.getElementById('list-drag-handle');
+            const sheet = document.getElementById('station-list-sheet');
+            let startY = 0;
+            let currentY = 0;
+
+            handle.addEventListener('mousedown', dragStart);
+            handle.addEventListener('touchstart', dragStart, {passive: true});
+
+            function dragStart(e) {
+                startY = e.type === 'touchstart' ? e.touches[0].clientY : e.clientY;
+                document.addEventListener('mousemove', dragMove);
+                document.addEventListener('touchmove', dragMove, {passive: true});
+                document.addEventListener('mouseup', dragEnd);
+                document.addEventListener('touchend', dragEnd);
+                sheet.style.transition = 'none'; // Disable transition for smooth dragging
+            }
+
+            function dragMove(e) {
+                const y = e.type === 'touchmove' ? e.touches[0].clientY : e.clientY;
+                const deltaY = y - startY;
+
+                // If expanded, dragging down collapses it. If collapsed, dragging up expands it.
+                if (listExpanded && deltaY > 0) {
+                    sheet.style.transform = `translateY(${deltaY}px)`;
+                } else if (!listExpanded && deltaY < 0) {
+                    const baseOffset = window.innerHeight * 0.7 - 120; // Approx height minus exposed part
+                    sheet.style.transform = `translateY(calc(100% - 120px + ${deltaY}px))`;
+                }
+            }
+
+            function dragEnd(e) {
+                document.removeEventListener('mousemove', dragMove);
+                document.removeEventListener('touchmove', dragMove);
+                document.removeEventListener('mouseup', dragEnd);
+                document.removeEventListener('touchend', dragEnd);
+
+                sheet.style.transition = 'transform 0.3s ease-out'; // Re-enable transition
+
+                // Determine snap state based on current transform (simplified logic for prototype)
+                // Just toggle based on direction of last interaction for simplicity in this mock
+                toggleListSheet();
+            }
+        }
+
+        function triggerNavigationOffer() {
+            const station = stations.find(s => s.id === activeStationId);
+            if (!station) return;
+
+            document.getElementById('nav-destination-name').textContent = station.name;
+            const overlay = document.getElementById('navigate-offer-overlay');
+            overlay.classList.remove('hidden');
+            overlay.classList.add('flex');
+        }
+
+        function startNavigation(acceptedOffer) {
+            const overlay = document.getElementById('navigate-offer-overlay');
+            overlay.classList.add('hidden');
+            overlay.classList.remove('flex');
+
+            if (acceptedOffer) {
+                metrics.redemptions++;
+                updateDashboardMetrics();
+                alert("Navigating to store first, then charging station.");
+            } else {
+                alert("Navigating directly to charging station.");
+            }
+        }
+
+        // Mock Offer claim and Feedback
+        function claimOffer() {
+            metrics.redemptions++;
+            updateDashboardMetrics();
+
+            // Show feedback modal to user
+            const overlay = document.getElementById('feedback-overlay');
+            overlay.classList.remove('hidden');
+            overlay.classList.add('flex');
+        }
+
+        function closeFeedback() {
+            const overlay = document.getElementById('feedback-overlay');
+            overlay.classList.add('hidden');
+            overlay.classList.remove('flex');
+
+            // Reset selection styling
+            document.querySelectorAll('#feedback-overlay button').forEach(b => {
+                if (b.classList.contains('border-blue-500')) {
+                    b.classList.remove('bg-blue-50', 'border-blue-500');
+                    b.classList.add('border-slate-200');
+                }
+            });
+        }
+
+        function selectFeedback(btn) {
+            // clear others
+            btn.parentElement.querySelectorAll('button').forEach(b => {
+                b.classList.remove('bg-blue-50', 'border-blue-500');
+                b.classList.add('border-slate-200');
+            });
+            // set active
+            btn.classList.add('bg-blue-50', 'border-blue-500');
+            btn.classList.remove('border-slate-200');
+        }
+
+        function submitFeedback() {
+            alert("Feedback recorded. Thank you for testing the prototype!");
+            closeFeedback();
+        }
+
+        // Advertiser Dashboard Updates
+        function updateDashboardMetrics() {
+            document.getElementById('metric-pin-clicks').textContent = metrics.pinClicks;
+            document.getElementById('metric-redemptions').textContent = metrics.redemptions;
+
+            if (metrics.impressions > 0) {
+                const ctr = ((metrics.pinClicks / metrics.impressions) * 100).toFixed(2);
+                document.getElementById('metric-ctr').textContent = ctr;
+            }
+
+            // Add a brief highlight effect to numbers
+            const els = ['metric-pin-clicks', 'metric-redemptions'];
+            els.forEach(id => {
+                const el = document.getElementById(id);
+                el.classList.add('text-blue-600');
+                setTimeout(() => el.classList.remove('text-blue-600'), 500);
+            });
+        }
+
+    </script>
+</body>
+
+</html>
