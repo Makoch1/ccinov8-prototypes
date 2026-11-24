@@ -835,7 +835,6 @@
         // =========================================================================
         function selectOption(optionId) {
             state.selectedOptionId = optionId;
-            logInteraction("topup_option_selected", {optionId});
             renderAll();
 
             if (optionId === CONFIG.CUSTOM_OPTION.id) {
@@ -853,7 +852,6 @@
 
         function setCustomPreset(amount) {
             state.customAmount = amount;
-            logInteraction("topup_custom_preset_clicked", {amount});
             renderAll();
         }
 
@@ -869,7 +867,6 @@
                 drawer.classList.add("hidden");
                 chevron.className = "fa-solid fa-chevron-down text-[10px]";
             }
-            logInteraction("tier_perks_toggled", {expanded: state.perksExpanded});
         }
 
         function openCheckoutModal() {
@@ -891,7 +888,6 @@
             modal.classList.remove("hidden");
             modal.classList.add("flex");
 
-            logInteraction("topup_checkout_opened", {amount: calc.amount, optionId: calc.id});
         }
 
         function closeCheckoutModal() {
@@ -910,12 +906,7 @@
             const isUnlockedNow = isNextTierUnlocked();
             const newlyUnlocked = !wasUnlockedBefore && isUnlockedNow;
 
-            logInteraction("topup_completed", {
-                amount: calc.amount,
-                creditsAdded: calc.totalCredits,
-                pointsEarned: calc.pointsEarned,
-                newlyUnlockedTier: newlyUnlocked
-            });
+            logInteraction(`topup_completed_P${calc.amount}`);
 
             // Populate Success View
             document.getElementById("success-new-balance").textContent = `${formatNumber(state.credits)} Credits`;
@@ -952,7 +943,6 @@
         }
 
         function handleBackClick() {
-            logInteraction("topup_back_clicked");
             // Navigate back to the main map page if present, or show feedback
             if (document.referrer && document.referrer.includes("Charge_and_go")) {
                 window.history.back();
@@ -967,7 +957,6 @@
             state.selectedOptionId = "opt_500";
             state.customAmount = 300;
             closeCheckoutModal();
-            logInteraction("topup_prototype_reset");
             renderAll();
         }
 
