@@ -1,0 +1,981 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Charge&Go - Top Up Credits</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="./logging.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+
+        /* Custom subtle scrollbar */
+        ::-webkit-scrollbar {
+            width: 5px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        /* Animations */
+        .slide-up {
+            animation: slideUp 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(100%);
+            }
+
+            to {
+                transform: translateY(0);
+            }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.25s ease-out forwards;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        @keyframes pulseGlow {
+
+            0%,
+            100% {
+                box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.45);
+            }
+
+            50% {
+                box-shadow: 0 0 0 6px rgba(245, 158, 11, 0);
+            }
+        }
+
+        .urgent-glow {
+            animation: pulseGlow 2.2s infinite;
+        }
+    </style>
+</head>
+
+<body class="h-screen w-full flex flex-col md:flex-row overflow-hidden text-slate-800">
+
+    <!-- Mobile App Container -->
+    <main
+        class="w-full md:w-[390px] h-full flex flex-col relative bg-slate-50 shadow-2xl flex-shrink-0 border-r border-slate-200 mx-auto md:mx-0 z-10">
+
+        <!-- Top Navigation Header -->
+        <header
+            class="bg-white px-4 py-3.5 flex items-center justify-between border-b border-slate-100 sticky top-0 z-20">
+            <div class="flex items-center gap-3">
+                <button onclick="handleBackClick()" aria-label="Go back"
+                    class="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-700 transition-colors">
+                    <i class="fa-solid fa-arrow-left text-sm"></i>
+                </button>
+                <div>
+                    <h1 class="font-bold text-base text-slate-900 leading-tight">Top Up Credits</h1>
+                    <p class="text-[11px] text-slate-500" id="header-rate-label">₱1 = 1 Credit • ₱1 = 1 Point</p>
+                </div>
+            </div>
+
+            <!-- Current Wallet Balance Pill -->
+            <div class="bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-full flex items-center gap-1.5">
+                <i class="fa-solid fa-bolt text-blue-600 text-xs"></i>
+                <span class="text-xs font-bold text-blue-900" id="header-credits-balance">0 Credits</span>
+            </div>
+        </header>
+
+        <!-- Scrollable Body Content -->
+        <div class="flex-1 overflow-y-auto px-4 pt-3 pb-36 space-y-4">
+
+            <!-- 1. Charging Requirement Status Banner -->
+            <div id="charge-requirement-banner"
+                class="rounded-xl p-3 border flex items-center justify-between gap-3 transition-colors">
+                <!-- Populated dynamically via JS -->
+            </div>
+
+            <!-- 2. Loyalty Points & Tier Progress Card -->
+            <section
+                class="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-2xl p-4 text-white shadow-lg relative overflow-hidden">
+                <!-- Decorative background accent -->
+                <div
+                    class="absolute -right-6 -top-6 w-28 h-28 bg-amber-400/10 rounded-full blur-xl pointer-events-none">
+                </div>
+
+                <div class="flex items-start justify-between mb-3 relative z-10">
+                    <div>
+                        <div class="flex items-center gap-2 mb-1">
+                            <span id="current-tier-badge"
+                                class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-slate-700 text-slate-200 border border-slate-600">
+                                <i class="fa-solid fa-bolt text-amber-400"></i>
+                                <span id="current-tier-name">Silver</span>
+                            </span>
+                            <span class="text-[11px] text-slate-400 font-medium" id="current-points-text">510 pts</span>
+                        </div>
+                        <h2 class="text-sm font-bold text-white" id="points-away-headline">
+                            490 pts away from Gold
+                        </h2>
+                    </div>
+
+                    <button onclick="togglePerksDrawer()"
+                        class="text-[11px] font-semibold text-amber-300 hover:text-amber-200 bg-white/10 hover:bg-white/15 px-2.5 py-1.5 rounded-lg transition-colors flex items-center gap-1 shrink-0">
+                        <span>Tier Perks</span>
+                        <i class="fa-solid fa-chevron-down text-[10px]" id="perks-chevron"></i>
+                    </button>
+                </div>
+
+                <!-- Progress Bar -->
+                <div class="relative z-10">
+                    <div class="w-full h-2.5 bg-slate-700/80 rounded-full overflow-hidden p-0.5">
+                        <div id="tier-progress-bar"
+                            class="h-full bg-gradient-to-r from-amber-400 to-orange-500 rounded-full transition-all duration-500"
+                            style="width: 51%;"></div>
+                    </div>
+                    <div class="flex justify-between items-center text-[10px] text-slate-400 mt-1.5">
+                        <span id="progress-min-label">0 pts</span>
+                        <span class="text-amber-300 font-medium" id="progress-target-label">Next: Gold (1,000
+                            pts)</span>
+                    </div>
+                </div>
+
+                <!-- Expandable Tier Perks Comparison -->
+                <div id="tier-perks-drawer"
+                    class="hidden mt-3 pt-3 border-t border-slate-700/80 text-xs space-y-2.5 fade-in">
+                    <div class="bg-slate-800/80 rounded-xl p-2.5 border border-slate-700">
+                        <div class="font-bold text-slate-300 mb-1 flex items-center justify-between">
+                            <span>Current: <span id="drawer-current-tier">Silver</span></span>
+                            <span class="text-[10px] bg-slate-700 px-1.5 py-0.5 rounded text-slate-300">Active</span>
+                        </div>
+                        <ul id="drawer-current-perks" class="space-y-1 text-[11px] text-slate-400 list-disc pl-4"></ul>
+                    </div>
+
+                    <div class="bg-amber-500/10 rounded-xl p-2.5 border border-amber-400/30">
+                        <div class="font-bold text-amber-300 mb-1 flex items-center justify-between">
+                            <span><i class="fa-solid fa-crown mr-1"></i>Next: <span id="drawer-next-tier">Gold
+                                </span></span>
+                            <span class="text-[10px] bg-amber-400/20 text-amber-300 px-1.5 py-0.5 rounded font-bold"
+                                id="drawer-bump-badge">+0.5% Bonus Boost</span>
+                        </div>
+                        <ul id="drawer-next-perks" class="space-y-1 text-[11px] text-amber-100/90 list-disc pl-4"></ul>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 3. Top-Up Options Section -->
+            <section>
+                <div class="flex items-center justify-between mb-2.5">
+                    <h3 class="font-bold text-sm text-slate-800">Select Top-Up Amount</h3>
+                    <span class="text-[11px] font-medium text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md"
+                        id="active-bonus-tier-label">
+                        Silver Rates
+                    </span>
+                </div>
+
+                <!-- Options Container (Rendered via JS from CONFIG) -->
+                <div id="topup-options-container" class="space-y-3"></div>
+            </section>
+
+            <!-- 4. Contextual Nudge / Summary Box -->
+            <div id="selection-nudge-box" class="rounded-xl p-3.5 text-xs border transition-all">
+                <!-- Populated dynamically based on user's selection -->
+            </div>
+
+        </div>
+
+        <!-- Sticky Bottom Checkout Footer -->
+        <div
+            class="absolute bottom-0 left-0 w-full bg-white border-t border-slate-200 p-4 pb-5 shadow-[0_-6px_16px_-4px_rgba(0,0,0,0.08)] z-20">
+            <div class="flex items-center justify-between text-xs text-slate-500 mb-2">
+                <span>Total Credits to Receive:</span>
+                <span class="font-extrabold text-slate-900 text-sm" id="footer-total-credits">510 Credits</span>
+            </div>
+            <button id="checkout-btn" onclick="openCheckoutModal()"
+                class="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold py-3.5 px-4 rounded-xl shadow-md shadow-blue-200 transition-all flex items-center justify-center gap-2 text-sm">
+                <i class="fa-solid fa-bolt"></i>
+                <span id="checkout-btn-text">Top Up ₱500 & Unlock Gold</span>
+            </button>
+        </div>
+
+        <!-- Mock Payment Confirmation & Tier-Up Modal -->
+        <div id="checkout-modal"
+            class="absolute inset-0 bg-slate-900/60 z-50 hidden flex-col justify-end backdrop-blur-sm fade-in">
+            <div class="bg-white rounded-t-3xl p-5 shadow-2xl slide-up">
+                <div class="w-10 h-1 bg-slate-300 rounded-full mx-auto mb-4"></div>
+
+                <!-- Step 1: Payment Review -->
+                <div id="modal-review-step">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="font-bold text-lg text-slate-900">Confirm Top-Up</h3>
+                        <button onclick="closeCheckoutModal()"
+                            class="w-8 h-8 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 flex items-center justify-center">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
+
+                    <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-2.5 mb-4 text-sm">
+                        <div class="flex justify-between">
+                            <span class="text-slate-500">Top-Up Amount</span>
+                            <span class="font-bold text-slate-800" id="modal-pay-amount">₱500.00</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-slate-500">Base Credits</span>
+                            <span class="font-semibold text-slate-800" id="modal-base-credits">500 Credits</span>
+                        </div>
+                        <div class="flex justify-between text-emerald-600">
+                            <span id="modal-bonus-label">Tier Bonus (+2%)</span>
+                            <span class="font-bold" id="modal-bonus-credits">+10 Credits</span>
+                        </div>
+                        <div class="border-t border-slate-200 pt-2.5 flex justify-between text-base">
+                            <span class="font-bold text-slate-900">Total Credits</span>
+                            <span class="font-extrabold text-blue-600" id="modal-total-credits">510 Credits</span>
+                        </div>
+                        <div
+                            class="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 flex items-center justify-between text-xs text-amber-900 mt-1">
+                            <span><i class="fa-solid fa-star text-amber-500 mr-1"></i> Loyalty Points Earned</span>
+                            <span class="font-bold" id="modal-points-earned">+500 pts</span>
+                        </div>
+                    </div>
+
+                    <!-- Mock Payment Method -->
+                    <div class="border border-slate-200 rounded-xl p-3 flex items-center justify-between mb-5">
+                        <div class="flex items-center gap-3">
+                            <div
+                                class="w-9 h-9 rounded-lg bg-blue-600 text-white font-bold text-xs flex items-center justify-center">
+                                GC
+                            </div>
+                            <div>
+                                <div class="text-xs font-bold text-slate-800">GCash E-Wallet</div>
+                                <div class="text-[11px] text-slate-500">Instant credit top-up</div>
+                            </div>
+                        </div>
+                        <span class="text-xs font-semibold text-blue-600">Change</span>
+                    </div>
+
+                    <button onclick="processTopUp()"
+                        class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-blue-200 transition-all">
+                        Confirm & Pay <span id="modal-confirm-price">₱500</span>
+                    </button>
+                </div>
+
+                <!-- Step 2: Success & Tier Celebration -->
+                <div id="modal-success-step" class="hidden text-center py-2">
+                    <div id="success-icon-wrap"
+                        class="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 text-3xl flex items-center justify-center mx-auto mb-3">
+                        <i class="fa-solid fa-check"></i>
+                    </div>
+                    <div id="tier-unlocked-pill"
+                        class="hidden inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-100 text-amber-800 border border-amber-300 text-xs font-extrabold uppercase tracking-wide mb-2">
+                        <i class="fa-solid fa-crown text-amber-500"></i> New Tier Unlocked!
+                    </div>
+                    <h3 class="font-extrabold text-xl text-slate-900 mb-1" id="success-title">Top-Up Successful!</h3>
+                    <p class="text-xs text-slate-600 mb-4 max-w-xs mx-auto" id="success-subtitle">
+                        Your credits have been added and you are ready to charge!
+                    </p>
+
+                    <div class="bg-slate-50 border border-slate-200 rounded-xl p-3.5 mb-5 text-xs space-y-1.5">
+                        <div class="flex justify-between">
+                            <span class="text-slate-500">New Credit Balance:</span>
+                            <span class="font-extrabold text-blue-600" id="success-new-balance">545 Credits</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-slate-500">New Points Total:</span>
+                            <span class="font-bold text-slate-800" id="success-new-points">1,010 pts</span>
+                        </div>
+                        <div id="success-perk-unlocked-row"
+                            class="hidden flex justify-between text-amber-700 font-semibold pt-1 border-t border-slate-200">
+                            <span>Bonus Rates Upgraded:</span>
+                            <span id="success-bonus-bump">+0.5% on all static options!</span>
+                        </div>
+                    </div>
+
+                    <button onclick="closeCheckoutModal()"
+                        class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3.5 rounded-xl transition-all">
+                        Done
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // =========================================================================
+        // EASY-TO-MODIFY PROTOTYPE CONSTANTS
+        // =========================================================================
+        const CONFIG = {
+            // Currency & Conversion Rates
+            CURRENCY_SYMBOL: "₱",
+            CREDITS_PER_PESO: 1,              // 1 peso = 1 credit
+            POINTS_PER_PESO: 1,               // 1 peso paid = 1 point
+
+            // User Starting Balances & Charging Threshold
+            INITIAL_CREDITS: 35,              // User's starting credit balance
+            REQUIRED_CREDITS_TO_CHARGE: 250,  // Minimum credits needed to start charging
+
+            // Loyalty Points & Tier Thresholds
+            // (1000 - 510 = 490 points away from the next tier)
+            INITIAL_POINTS: 510,
+            NEXT_TIER_POINTS: 1000,
+
+            // Tier Definitions & Perks
+            TIERS: {
+                current: {
+                    name: "Silver",
+                    icon: "fa-bolt",
+                    perks: [
+                        "Up to +5% bonus credits on static top-ups",
+                        "Standard charger reservation access",
+                        "Earn 1 point per ₱1 paid"
+                    ]
+                },
+                next: {
+                    name: "Gold",
+                    icon: "fa-crown",
+                    perks: [
+                        "+0.5% extra bonus credits on all static top-ups",
+                        "Priority charger queue & free 15-min hold",
+                        "Exclusive partner café vouchers while charging"
+                    ]
+                }
+            },
+
+            // Static Top-Up Options & Base Bonus Percentages (Current Tier)
+            STATIC_OPTIONS: [
+                {
+                    id: "opt_250",
+                    amount: 250,
+                    baseBonusPercent: 1.0,    // +1% on current tier (+1.5% on next tier)
+                    badge: "Min. to Charge"
+                },
+                {
+                    id: "opt_500",
+                    amount: 500,
+                    baseBonusPercent: 2.0,    // +2% on current tier (+2.5% on next tier)
+                    isUrgentTierUp: true      // Highlights urgent CTA to reach next tier
+                },
+                {
+                    id: "opt_1000",
+                    amount: 1000,
+                    baseBonusPercent: 5.0,    // +5% on current tier (+5.5% on next tier)
+                    badge: "Best Value"
+                }
+            ],
+
+            // Bonus percentage increase when user reaches the next tier (+0.5%)
+            NEXT_TIER_BONUS_BUMP: 0.5,
+
+            // Custom Top-Up Option Settings
+            CUSTOM_OPTION: {
+                id: "opt_custom",
+                minAmount: 50,
+                maxAmount: 50000,
+                baseBonusPercent: 0           // Static options scale with tier; custom defaults to 0%
+            }
+        };
+
+        // =========================================================================
+        // FALLBACK INTERACTION LOGGER
+        // =========================================================================
+        if (typeof window.logInteraction !== "function") {
+            window.logInteraction = function (eventName, data = {}) {
+                console.log(`[Interaction Logged]: ${eventName}`, data);
+            };
+        }
+
+        // =========================================================================
+        // APPLICATION STATE
+        // =========================================================================
+        let state = {
+            credits: CONFIG.INITIAL_CREDITS,
+            points: CONFIG.INITIAL_POINTS,
+            selectedOptionId: "opt_500", // Default to ₱500 to spotlight the urgent tier-up flow
+            customAmount: 300,
+            perksExpanded: false
+        };
+
+        // =========================================================================
+        // HELPER CALCULATIONS
+        // =========================================================================
+        function isNextTierUnlocked() {
+            return state.points >= CONFIG.NEXT_TIER_POINTS;
+        }
+
+        function getPointsAway() {
+            return Math.max(0, CONFIG.NEXT_TIER_POINTS - state.points);
+        }
+
+        function getEffectiveBonusPercent(basePercent) {
+            if (basePercent <= 0) return 0;
+            return isNextTierUnlocked()
+                ? basePercent + CONFIG.NEXT_TIER_BONUS_BUMP
+                : basePercent;
+        }
+
+        function formatNumber(num) {
+            return Number.isInteger(num)
+                ? num.toLocaleString("en-PH")
+                : num.toLocaleString("en-PH", {minimumFractionDigits: 1, maximumFractionDigits: 2});
+        }
+
+        function getSelectedCalculation() {
+            if (state.selectedOptionId === CONFIG.CUSTOM_OPTION.id) {
+                const amt = Math.max(0, Number(state.customAmount) || 0);
+                const bonusPct = getEffectiveBonusPercent(CONFIG.CUSTOM_OPTION.baseBonusPercent);
+                const baseCredits = amt * CONFIG.CREDITS_PER_PESO;
+                const bonusCredits = +(baseCredits * (bonusPct / 100)).toFixed(2);
+                const pointsEarned = Math.floor(amt * CONFIG.POINTS_PER_PESO);
+                return {
+                    id: CONFIG.CUSTOM_OPTION.id,
+                    isCustom: true,
+                    amount: amt,
+                    bonusPct,
+                    baseCredits,
+                    bonusCredits,
+                    totalCredits: +(baseCredits + bonusCredits).toFixed(2),
+                    pointsEarned,
+                    isValid: amt >= CONFIG.CUSTOM_OPTION.minAmount && amt <= CONFIG.CUSTOM_OPTION.maxAmount
+                };
+            }
+
+            const opt = CONFIG.STATIC_OPTIONS.find(o => o.id === state.selectedOptionId) || CONFIG.STATIC_OPTIONS[1];
+            const bonusPct = getEffectiveBonusPercent(opt.baseBonusPercent);
+            const baseCredits = opt.amount * CONFIG.CREDITS_PER_PESO;
+            const bonusCredits = +(baseCredits * (bonusPct / 100)).toFixed(2);
+            const pointsEarned = Math.floor(opt.amount * CONFIG.POINTS_PER_PESO);
+
+            return {
+                id: opt.id,
+                isCustom: false,
+                amount: opt.amount,
+                bonusPct,
+                baseCredits,
+                bonusCredits,
+                totalCredits: +(baseCredits + bonusCredits).toFixed(2),
+                pointsEarned,
+                isValid: true
+            };
+        }
+
+        // =========================================================================
+        // RENDER FUNCTIONS
+        // =========================================================================
+        function renderAll() {
+            renderHeaderAndRequirement();
+            renderTierCard();
+            renderTopUpOptions();
+            renderNudgeAndFooter();
+            renderDesktopPanel();
+        }
+
+        function renderHeaderAndRequirement() {
+            document.getElementById("header-rate-label").textContent =
+                `${CONFIG.CURRENCY_SYMBOL}1 = ${CONFIG.CREDITS_PER_PESO} Credit • ${CONFIG.CURRENCY_SYMBOL}1 = ${CONFIG.POINTS_PER_PESO} Point`;
+            document.getElementById("header-credits-balance").textContent =
+                `${formatNumber(state.credits)} Credits`;
+
+            const banner = document.getElementById("charge-requirement-banner");
+            const deficit = Math.max(0, CONFIG.REQUIRED_CREDITS_TO_CHARGE - state.credits);
+
+            if (deficit > 0) {
+                banner.className = "rounded-xl p-3 border bg-blue-50/90 border-blue-200 flex items-center justify-between gap-3";
+                banner.innerHTML = `
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center shrink-0">
+                            <i class="fa-solid fa-charging-station text-xs"></i>
+                        </div>
+                        <div>
+                            <div class="text-xs font-bold text-slate-900">
+                                ${formatNumber(CONFIG.REQUIRED_CREDITS_TO_CHARGE)} Credits Needed to Charge
+                            </div>
+                            <div class="text-[11px] text-slate-600">
+                                You have <span class="font-semibold text-blue-700">${formatNumber(state.credits)}</span> • Top up at least <span class="font-bold text-slate-800">${CONFIG.CURRENCY_SYMBOL}${formatNumber(deficit)}</span> to start.
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else {
+                banner.className = "rounded-xl p-3 border bg-emerald-50 border-emerald-200 flex items-center justify-between gap-3";
+                banner.innerHTML = `
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-8 h-8 rounded-lg bg-emerald-600 text-white flex items-center justify-center shrink-0">
+                            <i class="fa-solid fa-circle-check text-sm"></i>
+                        </div>
+                        <div>
+                            <div class="text-xs font-bold text-emerald-950">Ready to Charge!</div>
+                            <div class="text-[11px] text-emerald-700">
+                                You meet the ${formatNumber(CONFIG.REQUIRED_CREDITS_TO_CHARGE)}-credit minimum. Top up more to maximize tier bonuses!
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        function renderTierCard() {
+            const unlocked = isNextTierUnlocked();
+            const pointsAway = getPointsAway();
+            const activeTier = unlocked ? CONFIG.TIERS.next : CONFIG.TIERS.current;
+
+            const badgeEl = document.getElementById("current-tier-badge");
+            if (unlocked) {
+                badgeEl.className = "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-400/20 text-amber-300 border border-amber-400/40";
+            } else {
+                badgeEl.className = "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-slate-700 text-slate-200 border border-slate-600";
+            }
+
+            badgeEl.innerHTML = `
+                <i class="fa-solid ${activeTier.icon} text-amber-400"></i>
+                <span>${activeTier.name}</span>
+            `;
+
+            document.getElementById("current-points-text").textContent = `${formatNumber(state.points)} pts`;
+
+            const headlineEl = document.getElementById("points-away-headline");
+            const progressBar = document.getElementById("tier-progress-bar");
+            const targetLabel = document.getElementById("progress-target-label");
+
+            if (!unlocked) {
+                headlineEl.innerHTML = `<span class="text-amber-300">${formatNumber(pointsAway)} pts away</span> from ${CONFIG.TIERS.next.name}`;
+                const pct = Math.min(100, Math.max(5, (state.points / CONFIG.NEXT_TIER_POINTS) * 100));
+                progressBar.style.width = `${pct}%`;
+                targetLabel.textContent = `Next: ${CONFIG.TIERS.next.name} (${formatNumber(CONFIG.NEXT_TIER_POINTS)} pts)`;
+            } else {
+                headlineEl.innerHTML = `<span class="text-amber-300"><i class="fa-solid fa-crown mr-1"></i>${CONFIG.TIERS.next.name} Unlocked!</span> (+${CONFIG.NEXT_TIER_BONUS_BUMP}% bonus active)`;
+                progressBar.style.width = "100%";
+                targetLabel.textContent = `${formatNumber(CONFIG.NEXT_TIER_POINTS)} pts milestone reached!`;
+            }
+
+            // Populate Perks Drawer
+            document.getElementById("drawer-current-tier").textContent = CONFIG.TIERS.current.name;
+            document.getElementById("drawer-next-tier").textContent = CONFIG.TIERS.next.name;
+            document.getElementById("drawer-bump-badge").textContent = `+${CONFIG.NEXT_TIER_BONUS_BUMP}% Bonus Boost`;
+
+            document.getElementById("drawer-current-perks").innerHTML = CONFIG.TIERS.current.perks
+                .map(p => `<li>${p}</li>`).join("");
+            document.getElementById("drawer-next-perks").innerHTML = CONFIG.TIERS.next.perks
+                .map(p => `<li>${p}</li>`).join("");
+
+            document.getElementById("active-bonus-tier-label").textContent = `${activeTier.name} Rates`;
+        }
+
+        function renderTopUpOptions() {
+            const container = document.getElementById("topup-options-container");
+            container.innerHTML = "";
+
+            const unlocked = isNextTierUnlocked();
+            const pointsAway = getPointsAway();
+
+            // Render Static Options (250, 500, 1000)
+            CONFIG.STATIC_OPTIONS.forEach(opt => {
+                const isSelected = state.selectedOptionId === opt.id;
+                const bonusPct = getEffectiveBonusPercent(opt.baseBonusPercent);
+                const nextTierBonusPct = opt.baseBonusPercent + CONFIG.NEXT_TIER_BONUS_BUMP;
+                const bonusCredits = +(opt.amount * CONFIG.CREDITS_PER_PESO * (bonusPct / 100)).toFixed(2);
+                const totalCredits = +(opt.amount * CONFIG.CREDITS_PER_PESO + bonusCredits).toFixed(2);
+                const pointsEarned = Math.floor(opt.amount * CONFIG.POINTS_PER_PESO);
+                const unlocksTierNow = !unlocked && pointsEarned >= pointsAway;
+
+                const card = document.createElement("div");
+
+                // Urgent styling for the ₱500 tier-up option when user hasn't unlocked next tier yet
+                if (opt.isUrgentTierUp && !unlocked) {
+                    card.className = `relative rounded-2xl p-4 cursor-pointer transition-all border-2 ${isSelected
+                        ? "border-amber-500 bg-gradient-to-r from-amber-50 via-orange-50/70 to-amber-50 shadow-md urgent-glow"
+                        : "border-amber-300 bg-amber-50/40 hover:border-amber-400"
+                        }`;
+                } else {
+                    card.className = `relative rounded-2xl p-3.5 cursor-pointer transition-all border-2 bg-white ${isSelected
+                        ? "border-blue-600 shadow-sm ring-2 ring-blue-600/10"
+                        : "border-slate-200 hover:border-slate-300"
+                        }`;
+                }
+
+                card.onclick = () => selectOption(opt.id);
+
+                // Top Pill / Urgent Banner
+                let topBadgeHtml = "";
+                if (opt.isUrgentTierUp && !unlocked) {
+                    topBadgeHtml = `
+                        <div class="inline-flex items-center gap-1.5 bg-gradient-to-r from-amber-500 to-orange-600 text-white text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-full shadow-sm mb-2">
+                            <i class="fa-solid fa-fire"></i> Instant Tier-Up • Only ${formatNumber(pointsAway)} pts needed!
+                        </div>
+                    `;
+                } else if (opt.badge) {
+                    const badgeStyle = opt.id === "opt_1000"
+                        ? "bg-emerald-100 text-emerald-800 border-emerald-200"
+                        : "bg-slate-100 text-slate-600 border-slate-200";
+                    topBadgeHtml = `
+                        <span class="inline-block text-[10px] font-bold px-2 py-0.5 rounded-md border ${badgeStyle} mb-1.5">
+                            ${opt.badge}
+                        </span>
+                    `;
+                }
+
+                // Urgent explanatory subtext for ₱500
+                let urgentSubtextHtml = "";
+                if (opt.isUrgentTierUp && !unlocked) {
+                    urgentSubtextHtml = `
+                        <div class="mt-2.5 pt-2 border-t border-amber-200/80 flex items-center justify-between text-[11px]">
+                            <span class="font-semibold text-amber-900">
+                                <i class="fa-solid fa-crown text-amber-500 mr-1"></i>Unlocks <strong>${CONFIG.TIERS.next.name}</strong> now!
+                            </span>
+                            <span class="text-amber-700 font-bold">Future rate: +${nextTierBonusPct}%</span>
+                        </div>
+                    `;
+                }
+
+                card.innerHTML = `
+                    ${topBadgeHtml}
+                    <div class="flex items-center justify-between gap-2">
+                        <div class="flex items-center gap-3">
+                            <!-- Radio Indicator -->
+                            <div class="w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${isSelected
+                        ? (opt.isUrgentTierUp && !unlocked ? "border-amber-600 bg-amber-600" : "border-blue-600 bg-blue-600")
+                        : "border-slate-300 bg-white"
+                    }">
+                                ${isSelected ? '<div class="w-2 h-2 rounded-full bg-white"></div>' : ""}
+                            </div>
+
+                            <div>
+                                <div class="flex items-baseline gap-2">
+                                    <span class="text-lg font-extrabold text-slate-900">${CONFIG.CURRENCY_SYMBOL}${formatNumber(opt.amount)}</span>
+                                    <span class="text-xs font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">
+                                        +${bonusPct}% Bonus (+${formatNumber(bonusCredits)})
+                                    </span>
+                                </div>
+                                <div class="text-xs text-slate-500 mt-0.5">
+                                    Get <strong class="text-slate-800">${formatNumber(totalCredits)} Credits</strong>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="text-right shrink-0">
+                            <span class="inline-flex items-center gap-1 text-xs font-bold ${unlocksTierNow ? "text-amber-700 bg-amber-100 px-2 py-1 rounded-lg" : "text-slate-600 bg-slate-100 px-2 py-1 rounded-lg"
+                    }">
+                                <i class="fa-solid fa-star text-amber-500 text-[10px]"></i> +${formatNumber(pointsEarned)} pts
+                            </span>
+                        </div>
+                    </div>
+                    ${urgentSubtextHtml}
+                `;
+
+                container.appendChild(card);
+            });
+
+            // Render Custom Option Card
+            const isCustomSelected = state.selectedOptionId === CONFIG.CUSTOM_OPTION.id;
+            const customBonusPct = getEffectiveBonusPercent(CONFIG.CUSTOM_OPTION.baseBonusPercent);
+            const customAmt = Number(state.customAmount) || 0;
+            const customPts = Math.floor(customAmt * CONFIG.POINTS_PER_PESO);
+
+            const customCard = document.createElement("div");
+            customCard.className = `rounded-2xl p-3.5 cursor-pointer transition-all border-2 bg-white ${isCustomSelected
+                ? "border-blue-600 shadow-sm ring-2 ring-blue-600/10"
+                : "border-slate-200 hover:border-slate-300"
+                }`;
+            customCard.onclick = () => {
+                if (!isCustomSelected) {
+                    selectOption(CONFIG.CUSTOM_OPTION.id);
+                }
+            };
+
+            customCard.innerHTML = `
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div class="w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${isCustomSelected ? "border-blue-600 bg-blue-600" : "border-slate-300 bg-white"
+                }">
+                            ${isCustomSelected ? '<div class="w-2 h-2 rounded-full bg-white"></div>' : ""}
+                        </div>
+                        <div>
+                            <div class="font-bold text-sm text-slate-900">Custom Amount</div>
+                            <div class="text-[11px] text-slate-500">
+                                ${customBonusPct > 0 ? `+${customBonusPct}% bonus credits` : `Min. ${CONFIG.CURRENCY_SYMBOL}${CONFIG.CUSTOM_OPTION.minAmount} • No tier bonus`}
+                            </div>
+                        </div>
+                    </div>
+                    <span class="text-xs font-semibold text-slate-500 bg-slate-100 px-2 py-1 rounded-lg">
+                        +${formatNumber(customPts)} pts
+                    </span>
+                </div>
+
+                ${isCustomSelected ? `
+                    <div class="mt-3 pt-3 border-t border-slate-100 fade-in" onclick="event.stopPropagation()">
+                        <div class="relative">
+                            <span class="absolute left-3.5 top-1/2 -translate-y-1/2 font-bold text-slate-500 text-base">${CONFIG.CURRENCY_SYMBOL}</span>
+                            <input type="number" id="custom-amount-input"
+                                value="${state.customAmount}"
+                                min="${CONFIG.CUSTOM_OPTION.minAmount}"
+                                max="${CONFIG.CUSTOM_OPTION.maxAmount}"
+                                placeholder="Enter amount"
+                                oninput="handleCustomAmountInput(this.value)"
+                                class="w-full bg-slate-50 border border-slate-300 focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20 rounded-xl pl-8 pr-4 py-2.5 font-extrabold text-slate-900 text-base focus:outline-none">
+                        </div>
+                        <div class="flex gap-2 mt-2">
+                            ${[150, 300, 750].map(preset => `
+                                <button type="button" onclick="setCustomPreset(${preset})"
+                                    class="flex-1 py-1 text-xs font-semibold rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700">
+                                    ${CONFIG.CURRENCY_SYMBOL}${preset}
+                                </button>
+                            `).join("")}
+                        </div>
+                    </div>
+                ` : ""}
+            `;
+
+            container.appendChild(customCard);
+        }
+
+        function renderNudgeAndFooter() {
+            const calc = getSelectedCalculation();
+            const nudgeBox = document.getElementById("selection-nudge-box");
+            const unlocked = isNextTierUnlocked();
+            const pointsAway = getPointsAway();
+            const projectedCredits = state.credits + calc.totalCredits;
+            const willUnlockTier = !unlocked && calc.pointsEarned >= pointsAway;
+
+            if (!calc.isValid) {
+                nudgeBox.className = "rounded-xl p-3 text-xs border bg-red-50 border-red-200 text-red-700";
+                nudgeBox.innerHTML = `<i class="fa-solid fa-circle-exclamation mr-1"></i> Please enter an amount of at least <strong>${CONFIG.CURRENCY_SYMBOL}${CONFIG.CUSTOM_OPTION.minAmount}</strong>.`;
+            } else if (willUnlockTier) {
+                nudgeBox.className = "rounded-xl p-3 text-xs border bg-amber-50 border-amber-300 text-amber-950";
+                nudgeBox.innerHTML = `
+                    <div class="flex items-start gap-2">
+                        <i class="fa-solid fa-bolt text-amber-500 mt-0.5"></i>
+                        <div>
+                            <strong>Smart Choice!</strong> You'll have <strong>${formatNumber(projectedCredits)} credits</strong> (plenty to charge) AND you'll earn <strong>${formatNumber(calc.pointsEarned)} pts</strong> to unlock <strong>${CONFIG.TIERS.next.name}</strong> right now!
+                        </div>
+                    </div>
+                `;
+            } else if (!unlocked && calc.amount >= 250 && calc.pointsEarned < pointsAway) {
+                const remainingAfter = pointsAway - calc.pointsEarned;
+                nudgeBox.className = "rounded-xl p-3 text-xs border bg-blue-50 border-blue-200 text-blue-950";
+                nudgeBox.innerHTML = `
+                    <div class="flex items-start justify-between gap-2">
+                        <div>
+                            <strong>Enough to charge (${formatNumber(projectedCredits)} credits)</strong>, but you'll still be <strong>${formatNumber(remainingAfter)} pts</strong> away from ${CONFIG.TIERS.next.name}.
+                        </div>
+                        <button onclick="selectOption('opt_500'); logInteraction('nudge_upgrade_500_clicked');"
+                            class="shrink-0 bg-amber-500 hover:bg-amber-600 text-white font-bold px-2.5 py-1.5 rounded-lg text-[11px] shadow-sm">
+                            Switch to ₱500
+                        </button>
+                    </div>
+                `;
+            } else if (projectedCredits < CONFIG.REQUIRED_CREDITS_TO_CHARGE) {
+                const stillShort = CONFIG.REQUIRED_CREDITS_TO_CHARGE - projectedCredits;
+                nudgeBox.className = "rounded-xl p-3 text-xs border bg-orange-50 border-orange-200 text-orange-900";
+                nudgeBox.innerHTML = `
+                    <i class="fa-solid fa-triangle-exclamation text-orange-500 mr-1"></i>
+                    Note: You'll have <strong>${formatNumber(projectedCredits)} credits</strong>, which is still <strong>${formatNumber(stillShort)} credits</strong> short of the ${CONFIG.REQUIRED_CREDITS_TO_CHARGE}-credit minimum to charge.
+                `;
+            } else {
+                nudgeBox.className = "rounded-xl p-3 text-xs border bg-emerald-50 border-emerald-200 text-emerald-900";
+                nudgeBox.innerHTML = `
+                    <i class="fa-solid fa-circle-check text-emerald-600 mr-1"></i>
+                    You'll have <strong>${formatNumber(projectedCredits)} credits</strong> ready for charging and earn <strong>+${formatNumber(calc.pointsEarned)} loyalty points</strong>!
+                `;
+            }
+
+            // Update Sticky Footer
+            document.getElementById("footer-total-credits").textContent = `${formatNumber(calc.totalCredits)} Credits`;
+            const checkoutBtn = document.getElementById("checkout-btn");
+            const checkoutText = document.getElementById("checkout-btn-text");
+
+            checkoutBtn.disabled = !calc.isValid;
+
+            if (!calc.isValid) {
+                checkoutText.textContent = "Enter Valid Amount";
+            } else if (willUnlockTier) {
+                checkoutBtn.className = "w-full bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-bold py-3.5 px-4 rounded-xl shadow-md shadow-amber-200 transition-all flex items-center justify-center gap-2 text-sm";
+                checkoutText.textContent = `Pay ${CONFIG.CURRENCY_SYMBOL}${formatNumber(calc.amount)} • Unlock ${CONFIG.TIERS.next.name}`;
+            } else {
+                checkoutBtn.className = "w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 px-4 rounded-xl shadow-md shadow-blue-200 transition-all flex items-center justify-center gap-2 text-sm";
+                checkoutText.textContent = `Top Up ${CONFIG.CURRENCY_SYMBOL}${formatNumber(calc.amount)}`;
+            }
+        }
+
+        function renderDesktopPanel() {
+            const unlocked = isNextTierUnlocked();
+            const pointsAway = getPointsAway();
+            const activeTier = unlocked ? CONFIG.TIERS.next : CONFIG.TIERS.current;
+
+            document.getElementById("desk-credits").textContent = formatNumber(state.credits);
+            document.getElementById("desk-min-charge").textContent = formatNumber(CONFIG.REQUIRED_CREDITS_TO_CHARGE);
+            document.getElementById("desk-points").textContent = formatNumber(state.points);
+            document.getElementById("desk-points-away").textContent = unlocked
+                ? "Next tier unlocked!"
+                : `${formatNumber(pointsAway)} pts to ${CONFIG.TIERS.next.name}`;
+            document.getElementById("desk-tier").textContent = activeTier.name;
+
+            const ratesStr = CONFIG.STATIC_OPTIONS
+                .map(o => `${getEffectiveBonusPercent(o.baseBonusPercent)}%`)
+                .join(" / ");
+            document.getElementById("desk-rates").textContent = `Rates: ${ratesStr}`;
+        }
+
+        // =========================================================================
+        // USER INTERACTION HANDLERS
+        // =========================================================================
+        function selectOption(optionId) {
+            state.selectedOptionId = optionId;
+            logInteraction("topup_option_selected", {optionId});
+            renderAll();
+
+            if (optionId === CONFIG.CUSTOM_OPTION.id) {
+                setTimeout(() => {
+                    const input = document.getElementById("custom-amount-input");
+                    if (input) input.focus();
+                }, 50);
+            }
+        }
+
+        function handleCustomAmountInput(val) {
+            state.customAmount = val;
+            renderNudgeAndFooter();
+        }
+
+        function setCustomPreset(amount) {
+            state.customAmount = amount;
+            logInteraction("topup_custom_preset_clicked", {amount});
+            renderAll();
+        }
+
+        function togglePerksDrawer() {
+            state.perksExpanded = !state.perksExpanded;
+            const drawer = document.getElementById("tier-perks-drawer");
+            const chevron = document.getElementById("perks-chevron");
+
+            if (state.perksExpanded) {
+                drawer.classList.remove("hidden");
+                chevron.className = "fa-solid fa-chevron-up text-[10px]";
+            } else {
+                drawer.classList.add("hidden");
+                chevron.className = "fa-solid fa-chevron-down text-[10px]";
+            }
+            logInteraction("tier_perks_toggled", {expanded: state.perksExpanded});
+        }
+
+        function openCheckoutModal() {
+            const calc = getSelectedCalculation();
+            if (!calc.isValid) return;
+
+            document.getElementById("modal-pay-amount").textContent = `${CONFIG.CURRENCY_SYMBOL}${formatNumber(calc.amount)}`;
+            document.getElementById("modal-base-credits").textContent = `${formatNumber(calc.baseCredits)} Credits`;
+            document.getElementById("modal-bonus-label").textContent = `Tier Bonus (+${calc.bonusPct}%)`;
+            document.getElementById("modal-bonus-credits").textContent = `+${formatNumber(calc.bonusCredits)} Credits`;
+            document.getElementById("modal-total-credits").textContent = `${formatNumber(calc.totalCredits)} Credits`;
+            document.getElementById("modal-points-earned").textContent = `+${formatNumber(calc.pointsEarned)} pts`;
+            document.getElementById("modal-confirm-price").textContent = `${CONFIG.CURRENCY_SYMBOL}${formatNumber(calc.amount)}`;
+
+            document.getElementById("modal-review-step").classList.remove("hidden");
+            document.getElementById("modal-success-step").classList.add("hidden");
+
+            const modal = document.getElementById("checkout-modal");
+            modal.classList.remove("hidden");
+            modal.classList.add("flex");
+
+            logInteraction("topup_checkout_opened", {amount: calc.amount, optionId: calc.id});
+        }
+
+        function closeCheckoutModal() {
+            const modal = document.getElementById("checkout-modal");
+            modal.classList.add("hidden");
+            modal.classList.remove("flex");
+        }
+
+        function processTopUp() {
+            const calc = getSelectedCalculation();
+            const wasUnlockedBefore = isNextTierUnlocked();
+
+            state.credits = +(state.credits + calc.totalCredits).toFixed(2);
+            state.points += calc.pointsEarned;
+
+            const isUnlockedNow = isNextTierUnlocked();
+            const newlyUnlocked = !wasUnlockedBefore && isUnlockedNow;
+
+            logInteraction("topup_completed", {
+                amount: calc.amount,
+                creditsAdded: calc.totalCredits,
+                pointsEarned: calc.pointsEarned,
+                newlyUnlockedTier: newlyUnlocked
+            });
+
+            // Populate Success View
+            document.getElementById("success-new-balance").textContent = `${formatNumber(state.credits)} Credits`;
+            document.getElementById("success-new-points").textContent = `${formatNumber(state.points)} pts`;
+
+            const unlockedPill = document.getElementById("tier-unlocked-pill");
+            const perkRow = document.getElementById("success-perk-unlocked-row");
+            const iconWrap = document.getElementById("success-icon-wrap");
+
+            if (newlyUnlocked) {
+                unlockedPill.classList.remove("hidden");
+                perkRow.classList.remove("hidden");
+                iconWrap.className = "w-16 h-16 rounded-full bg-amber-100 text-amber-500 text-3xl flex items-center justify-center mx-auto mb-3";
+                iconWrap.innerHTML = `<i class="fa-solid fa-crown"></i>`;
+                document.getElementById("success-title").textContent = `Welcome to ${CONFIG.TIERS.next.name}!`;
+                document.getElementById("success-subtitle").textContent =
+                    `You unlocked ${CONFIG.TIERS.next.name} and boosted all static top-up bonuses by +${CONFIG.NEXT_TIER_BONUS_BUMP}%!`;
+                document.getElementById("success-bonus-bump").textContent =
+                    `+${CONFIG.NEXT_TIER_BONUS_BUMP}% on all static options!`;
+            } else {
+                unlockedPill.classList.add("hidden");
+                perkRow.classList.add("hidden");
+                iconWrap.className = "w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 text-3xl flex items-center justify-center mx-auto mb-3";
+                iconWrap.innerHTML = `<i class="fa-solid fa-check"></i>`;
+                document.getElementById("success-title").textContent = "Top-Up Successful!";
+                document.getElementById("success-subtitle").textContent =
+                    `Added ${formatNumber(calc.totalCredits)} credits to your Charge&Go wallet.`;
+            }
+
+            document.getElementById("modal-review-step").classList.add("hidden");
+            document.getElementById("modal-success-step").classList.remove("hidden");
+
+            renderAll();
+        }
+
+        function handleBackClick() {
+            logInteraction("topup_back_clicked");
+            // Navigate back to the main map page if present, or show feedback
+            if (document.referrer && document.referrer.includes("Charge_and_go")) {
+                window.history.back();
+            } else {
+                window.location.href = "Charge_and_go.html";
+            }
+        }
+
+        function resetPrototypeState() {
+            state.credits = CONFIG.INITIAL_CREDITS;
+            state.points = CONFIG.INITIAL_POINTS;
+            state.selectedOptionId = "opt_500";
+            state.customAmount = 300;
+            closeCheckoutModal();
+            logInteraction("topup_prototype_reset");
+            renderAll();
+        }
+
+        // Initialize on load
+        document.addEventListener("DOMContentLoaded", () => {
+            renderAll();
+        });
+    </script>
+</body>
+
+</html>
